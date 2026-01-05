@@ -1,0 +1,19 @@
+{
+  "name": "Financial Data Platform Docs",
+  "theme": "mint",
+  "colors": {
+    "primary": "#0D9373"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Product Documentation",
+        "pages": [
+          "docs/product/product-brief",
+          "docs/product/prd",
+          "docs/product/scope"
+        ]
+      }
+    ]
+  }
+}
