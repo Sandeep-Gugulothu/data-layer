@@ -13,6 +13,12 @@
           "docs/product/prd",
           "docs/product/scope"
         ]
+      },
+      {
+        "group": "Technical Architecture",
+        "pages": [
+          "docs/architecture/high-level-design"
+        ]
       }
     ]
   }
