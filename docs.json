@@ -24,7 +24,8 @@
         "group": "Data Models & Schemas",
         "pages": [
           "docs/data/data-model",
-          "docs/data/data-dictionary"
+          "docs/data/data-dictionary",
+          "docs/data/schemas/ohlcv-schema"
         ]
       }
     ]
