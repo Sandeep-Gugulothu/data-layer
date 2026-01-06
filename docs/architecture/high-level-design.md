@@ -32,7 +32,7 @@ Phase 1 and 2 operate at volumes where embedded DuckDB and file-based Parquet ar
 
 ## 3. Overall architecture (final state)
 
-![System Design Diagram](/docs/architecture/diagrams/Financial Data Platform Architecture.svg)
+![System Design Diagram](./diagrams/financial-data-platform-architecture.svg)
 
 The final architecture is a hub of specialized pipelines sharing common infrastructure. Each pipeline follows the same pattern — ingest, preserve raw, validate, normalize, store canonical — but uses different storage formats and processing tools appropriate to its data shape.
 
