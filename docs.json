@@ -19,6 +19,12 @@
         "pages": [
           "docs/architecture/high-level-design"
         ]
+      },
+      {
+        "group": "Data Models & Schemas",
+        "pages": [
+          "docs/data/data-model"
+        ]
       }
     ]
   }
