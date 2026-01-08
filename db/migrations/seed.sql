@@ -27,13 +27,13 @@ ON CONFLICT DO NOTHING;
 -- Seed Instruments
 INSERT INTO instruments (instrument_id, company_id, exchange_id, symbol, name, asset_class, currency, status)
 VALUES 
-    ('i1000000-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000002', 'AAPL', 'Apple Inc.', 'equity', 'USD', 'active'),
-    ('i1000000-0000-0000-0000-000000000002', 'c1000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000001', 'RELIANCE.NS', 'Reliance Industries Limited', 'equity', 'INR', 'active')
+    ('a1000000-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000002', 'AAPL', 'Apple Inc.', 'equity', 'USD', 'active'),
+    ('a1000000-0000-0000-0000-000000000002', 'c1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001', 'RELIANCE.NS', 'Reliance Industries Limited', 'equity', 'INR', 'active')
 ON CONFLICT (exchange_id, symbol) DO NOTHING;
 
 -- Seed Provider Symbol Mappings
 INSERT INTO provider_instrument_mappings (mapping_id, instrument_id, provider, provider_symbol, valid_from, valid_to)
 VALUES 
-    ('m1000000-0000-0000-0000-000000000001', 'i1000000-0000-0000-0000-000000000001', 'yfinance', 'AAPL', NULL, NULL),
-    ('m1000000-0000-0000-0000-000000000002', 'i1000000-0000-0000-0000-000000000002', 'yfinance', 'RELIANCE.NS', NULL, NULL)
+    ('f1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000001', 'yfinance', 'AAPL', NULL, NULL),
+    ('f1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000002', 'yfinance', 'RELIANCE.NS', NULL, NULL)
 ON CONFLICT (provider, provider_symbol, valid_from) DO NOTHING;

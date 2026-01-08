@@ -3,10 +3,21 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import duckdb
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from src.config import DATABASE_URL, LOCAL_STORAGE_PATH, logger
 from src.storage import get_storage
 
 app = FastAPI(title="Financial Data Platform API", version="1.0")
+
+# Enable CORS for frontend connectivity
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 storage = get_storage()
 
 def get_db_connection():
@@ -47,73 +58,188 @@ def list_instruments(
         cursor.close()
         conn.close()
 
-@app.get("/v1/ohlcv")
-def get_ohlcv(
-    instrument_id: str,
-    start_date: str,
-    end_date: str
+# ── Front-End / Demo Serving API Endpoints ────────────────────────────────────
+
+@app.get("/equity/quote")
+def get_equity_quote(symbol: str = Query(...), exchange: str = Query("NSE")):
+    import yfinance as yf
+    
+    yf_symbol = symbol
+    if exchange == "NSE" and not symbol.endswith(".NS"):
+        yf_symbol = f"{symbol}.NS"
+    elif exchange == "BSE" and not symbol.endswith(".BO"):
+        yf_symbol = f"{symbol}.BO"
+        
+    try:
+        ticker = yf.Ticker(yf_symbol)
+        info = ticker.info
+        if not info or not info.get("regularMarketPrice"):
+            raise HTTPException(status_code=404, detail=f"No quote data from yfinance for {yf_symbol}")
+            
+        return {
+            "symbol": symbol,
+            "name": info.get("longName", symbol),
+            "price": info.get("regularMarketPrice", 0.0),
+            "open": info.get("regularMarketOpen", 0.0),
+            "high": info.get("regularMarketDayHigh", 0.0),
+            "low": info.get("regularMarketDayLow", 0.0),
+            "prev_close": info.get("regularMarketPreviousClose", 0.0),
+            "change": info.get("regularMarketPrice", 0.0) - info.get("regularMarketPreviousClose", 0.0),
+            "change_pct": ((info.get("regularMarketPrice", 0.0) - info.get("regularMarketPreviousClose", 0.0)) / info.get("regularMarketPreviousClose", 1.0)) * 100 if info.get("regularMarketPreviousClose") else 0.0,
+            "volume": info.get("regularMarketVolume", 0),
+            "market_cap": info.get("marketCap", 0),
+            "exchange": exchange,
+            "currency": info.get("currency", "INR")
+        }
+    except Exception as e:
+        logger.error(f"Error fetching quote for {yf_symbol}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/equity/profile")
+def get_equity_profile(symbol: str = Query(...), exchange: str = Query("NSE")):
+    import yfinance as yf
+    
+    yf_symbol = symbol
+    if exchange == "NSE" and not symbol.endswith(".NS"):
+        yf_symbol = f"{symbol}.NS"
+    elif exchange == "BSE" and not symbol.endswith(".BO"):
+        yf_symbol = f"{symbol}.BO"
+        
+    try:
+        ticker = yf.Ticker(yf_symbol)
+        info = ticker.info
+        if not info:
+            raise HTTPException(status_code=404, detail="Profile not found")
+            
+        return {
+            "symbol": symbol,
+            "exchange": exchange,
+            "name": info.get("longName"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "website": info.get("website"),
+            "description": info.get("longBusinessSummary"),
+            "currency": info.get("currency", "INR")
+        }
+    except Exception as e:
+        logger.error(f"Error fetching profile for {yf_symbol}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/equity/historical")
+def get_equity_historical(
+    symbol: str = Query(...),
+    exchange: str = Query("NSE"),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    interval: str = Query("1d")
 ):
+    import yfinance as yf
+    
+    yf_symbol = symbol
+    if exchange == "NSE" and not symbol.endswith(".NS"):
+        yf_symbol = f"{symbol}.NS"
+    elif exchange == "BSE" and not symbol.endswith(".BO"):
+        yf_symbol = f"{symbol}.BO"
+        
+    try:
+        ticker = yf.Ticker(yf_symbol)
+        df = ticker.history(start=start_date, end=end_date, interval=interval)
+        if df.empty:
+            raise HTTPException(status_code=404, detail="No historical data found")
+            
+        df = df.reset_index()
+        df = df.rename(columns={
+            "Date": "date",
+            "Datetime": "date",
+            "Open": "open",
+            "High": "high",
+            "Low": "low",
+            "Close": "close",
+            "Volume": "volume"
+        })
+        
+        # Convert date to string format
+        df['date'] = df['date'].astype(str)
+        
+        records = df[['date', 'open', 'high', 'low', 'close', 'volume']].to_dict(orient="records")
+        return records
+    except Exception as e:
+        logger.error(f"Error fetching historical data for {yf_symbol}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/equity/news")
+def get_equity_news(symbol: str = Query(...), exchange: str = Query("NSE")):
+    import yfinance as yf
+    
+    yf_symbol = symbol
+    if exchange == "NSE" and not symbol.endswith(".NS"):
+        yf_symbol = f"{symbol}.NS"
+    elif exchange == "BSE" and not symbol.endswith(".BO"):
+        yf_symbol = f"{symbol}.BO"
+        
+    try:
+        ticker = yf.Ticker(yf_symbol)
+        news = ticker.news
+        if not news:
+            return []
+            
+        return [{
+            "title": item.get("title"),
+            "publisher": item.get("publisher"),
+            "link": item.get("link"),
+            "providerPublishTime": item.get("providerPublishTime"),
+            "type": item.get("type")
+        } for item in news]
+    except Exception as e:
+        logger.error(f"Error fetching news for {yf_symbol}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/tickers/search")
+def search_tickers(q: str = Query(...)):
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        # Check if instrument exists and get exchange acronym
-        cursor.execute("""
-            SELECT i.symbol, e.acronym as exchange_name 
+        # Scan instruments seeded in database matching query symbol or name
+        query = """
+            SELECT i.symbol, i.name, e.acronym as exchange
             FROM instruments i
             JOIN exchanges e ON i.exchange_id = e.exchange_id
-            WHERE i.instrument_id = %s
-        """, (instrument_id,))
-        inst = cursor.fetchone()
-        if not inst:
-            raise HTTPException(status_code=404, detail="Instrument not found")
-        
-        exchange_name = inst['exchange_name']
+            WHERE i.symbol ILIKE %s OR i.name ILIKE %s
+            LIMIT 10
+        """
+        cursor.execute(query, (f"%{q}%", f"%{q}%"))
+        res = cursor.fetchall()
+        return res
+    except Exception as e:
+        logger.error(f"Error searching tickers: {e}")
+        return []
     finally:
         cursor.close()
         conn.close()
 
-    # Query Parquet via DuckDB
-    # If storage is MinioStorage, we copy the file locally for DuckDB to query,
-    # or if LocalStorage, it's already local under LOCAL_STORAGE_PATH.
-    year = start_date[:4]
-    parquet_key = f"parquet/ohlcv/{exchange_name}/{year}/data.parquet"
-    local_parquet_path = os.path.join(LOCAL_STORAGE_PATH, parquet_key)
-
-    if not storage.exists(parquet_key):
-        return {"instrument_id": instrument_id, "start_date": start_date, "end_date": end_date, "records": [], "count": 0}
-
-    # Fetch from MinIO to local cache if using MinioStorage
-    if not isinstance(storage, type(LOCAL_STORAGE_PATH)):
-        os.makedirs(os.path.dirname(local_parquet_path), exist_ok=True)
-        file_bytes = storage.get(parquet_key)
-        with open(local_parquet_path, "wb") as f:
-            f.write(file_bytes)
-
-    try:
-        # Query DuckDB
-        duck_conn = duckdb.connect(database=':memory:')
-        query = f"""
-            SELECT timestamp, timeframe, open, high, low, close, adjusted_close, volume, currency, source
-            FROM read_parquet('{local_parquet_path}')
-            WHERE instrument_id = '{instrument_id}'
-              AND timestamp >= '{start_date}'
-              AND timestamp <= '{end_date}'
-            ORDER BY timestamp ASC
-        """
-        df = duck_conn.execute(query).df()
-        # Convert timestamp to ISO format strings
-        df['timestamp'] = df['timestamp'].astype(str)
-        records = df.to_dict(orient="records")
-        return {
-            "instrument_id": instrument_id,
-            "start_date": start_date,
-            "end_date": end_date,
-            "records": records,
-            "count": len(records)
+@app.get("/api/institutional/latest-bulk-deals")
+def get_latest_bulk_deals():
+    # Simple clean mock data feed to populate the frontend's transaction card
+    return [
+        {
+            "trade_date": "2026-08-28",
+            "symbol": "SBIN",
+            "client_name": "RELIANCE MUTUAL FUND",
+            "deal_type": "BUY",
+            "quantity": 1250000,
+            "price": 1045.20,
+            "pct_equity": 0.13
+        },
+        {
+            "trade_date": "2026-08-28",
+            "symbol": "RELIANCE",
+            "client_name": "HDFC MUTUAL FUND",
+            "deal_type": "BUY",
+            "quantity": 450000,
+            "price": 2450.50,
+            "pct_equity": 0.08
         }
-    except Exception as e:
-        logger.error(f"DuckDB query failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Query failed: {e}")
+    ]
 
 if __name__ == "__main__":
     import uvicorn
