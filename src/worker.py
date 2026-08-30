@@ -1,3 +1,6 @@
+import os
+import glob
+import duckdb
 import json
 import uuid
 import datetime
@@ -23,9 +26,9 @@ class IngestionWorker:
         """
         cursor.execute(query, (provider_symbol,))
         res = cursor.fetchone()
-        return res[0] if res else None
+        return res['instrument_id'] if res else None
 
-    def run(self, provider_symbol: str, start_date: str, end_date: str):
+    def run(self, provider_symbol: str, start_date: str = None, end_date: str = None):
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -43,8 +46,34 @@ class IngestionWorker:
             WHERE i.instrument_id = %s
         """, (instrument_id,))
         inst_info = cursor.fetchone()
+
         exchange_name = inst_info['exchange_name'] if inst_info else 'UNKNOWN'
         currency = inst_info['currency'] if inst_info else 'USD'
+
+        # Determine start and end dates incrementally if not provided
+        if not end_date:
+            end_date = datetime.date.today().isoformat()
+            
+        if not start_date:
+            max_date = None
+            parquet_pattern = os.path.join("./data_storage", f"parquet/ohlcv/{exchange_name}/**/*.parquet")
+            parquet_files = glob.glob(parquet_pattern, recursive=True)
+            if parquet_files:
+                duck_conn = duckdb.connect(database=':memory:')
+                try:
+                    files_str = ", ".join([f"'{f}'" for f in parquet_files])
+                    res = duck_conn.execute(f"SELECT MAX(timestamp) FROM read_parquet([{files_str}]) WHERE instrument_id = '{instrument_id}'").fetchone()
+                    if res and res[0]:
+                        max_date = pd.to_datetime(res[0]).date()
+                except Exception as ex:
+                    logger.warning(f"Failed to query max date from Parquet: {ex}")
+                    
+            if max_date:
+                start_date = (max_date + datetime.timedelta(days=1)).isoformat()
+                logger.info(f"Incremental Ingestion: found previous max date {max_date}. Setting start_date to {start_date}")
+            else:
+                start_date = (datetime.date.today() - datetime.timedelta(days=30)).isoformat()
+                logger.info(f"Incremental Ingestion: no previous data found. Defaulting start_date to 30 days ago: {start_date}")
 
         # Get Source and Dataset IDs
         cursor.execute("SELECT data_source_id FROM data_sources WHERE provider_key = 'yfinance' LIMIT 1")
@@ -201,8 +230,8 @@ class IngestionWorker:
 if __name__ == "__main__":
     import sys
     symbol = sys.argv[1] if len(sys.argv) > 1 else "AAPL"
-    start = sys.argv[2] if len(sys.argv) > 2 else "2026-08-01"
-    end = sys.argv[3] if len(sys.argv) > 3 else "2026-08-28"
+    start = sys.argv[2] if len(sys.argv) > 2 else None
+    end = sys.argv[3] if len(sys.argv) > 3 else None
     
     worker = IngestionWorker()
     worker.run(symbol, start, end)

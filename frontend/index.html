@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full w-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Data Platform Console</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1d1d1d;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1d1d1d;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #404040;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555555;
+        }
+        .bg-neutral-card {
+            background-color: #262626;
+        }
+        .bg-neutral-input {
+            background-color: #121212;
+        }
+        .border-neutral-item {
+            border-color: #3f3f3f;
+        }
+    </style>
+</head>
+<body class="text-white h-full w-full flex flex-col overflow-hidden custom-scrollbar">
+
+    <!-- Header (StockHouse Inspired Layout) -->
+    <header class="bg-[#262626] border-b border-neutral-700 shadow-md h-[68px] flex-shrink-0 px-6 xl:px-16 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <!-- Sleek clean text logo -->
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-chart-line text-[#2196F3] text-2xl"></i>
+                <span class="text-xl font-bold tracking-tight text-white">Data<span class="text-[#2196F3]">Platform</span></span>
+            </div>
+            <div class="h-6 w-px bg-neutral-700 hidden sm:block"></div>
+            <p class="text-xs text-neutral-400 hidden sm:block font-medium">Analytical Query Engine & serving Console</p>
+        </div>
+        
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-neutral-400">Region:</span>
+                <span class="text-xs font-semibold bg-neutral-700 px-2 py-0.5 rounded text-neutral-200">local-node1</span>
+            </div>
+            <div class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Backend Online
+            </div>
+        </div>
+    </header>
+
+    <!-- Top Control and Metrics Panel -->
+    <div class="w-full bg-[#1e1e1e] border-b border-neutral-700 px-6 xl:px-16 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4 flex-shrink-0">
+        <!-- Control options -->
+        <div class="flex flex-wrap items-center gap-6 w-full md:w-auto">
+            <div class="flex items-center gap-2.5">
+                <span class="text-xs text-neutral-400 font-semibold uppercase tracking-wider">Search Ticker:</span>
+                <div class="flex gap-1 bg-neutral-input border border-neutral-700 rounded-lg p-0.5">
+                    <input type="text" id="tickerSearch" value="SBIN" class="bg-transparent border-0 text-white rounded px-2.5 py-1 text-xs focus:outline-none focus:ring-0 w-32 font-bold uppercase" placeholder="e.g. SBIN">
+                    <button id="searchBtn" class="bg-[#2196F3] hover:bg-blue-500 text-white text-xs font-medium px-3.5 py-1 rounded transition">
+                        Update
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2.5">
+                <span class="text-xs text-neutral-400 font-semibold uppercase tracking-wider">Exchange:</span>
+                <div class="flex bg-neutral-card p-1 border border-neutral-700 rounded-lg">
+                    <label class="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium cursor-pointer text-white">
+                        <input type="radio" name="exchange" value="NSE" checked class="accent-[#2196F3] mr-1"> NSE
+                    </label>
+                    <label class="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium cursor-pointer text-neutral-400 hover:text-white">
+                        <input type="radio" name="exchange" value="NASDAQ" class="accent-[#2196F3] mr-1"> NASDAQ
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-Time serving Statistics -->
+        <div class="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end text-xs">
+            <div class="flex items-center gap-2">
+                <span class="text-neutral-400">DuckDB Query Latency:</span>
+                <span class="font-bold text-white bg-neutral-card px-2 py-0.5 border border-neutral-700 rounded" id="latencyStat">65 ms</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-neutral-400">Total Records:</span>
+                <span class="font-bold text-white bg-neutral-card px-2 py-0.5 border border-neutral-700 rounded" id="recordsCount">-</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace (Split Grid) -->
+    <main class="flex-1 overflow-y-auto custom-scrollbar p-6 xl:p-12 max-w-[1600px] w-full mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <!-- Sidebar Summary -->
+        <div class="lg:col-span-1 flex flex-col gap-6">
+            
+            <!-- Price Summary Panel -->
+            <div class="bg-neutral-card border border-neutral-700 rounded-xl p-5 shadow flex flex-col gap-4">
+                <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider">Live Metrics</h3>
+                
+                <div class="grid grid-cols-2 gap-3" id="quoteCards">
+                    <!-- Loaded Quote Data -->
+                </div>
+            </div>
+
+            <!-- Profile Summary Panel -->
+            <div class="bg-neutral-card border border-neutral-700 rounded-xl p-5 shadow flex-1 flex flex-col min-h-[300px]">
+                <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4">Stock Overview</h3>
+                <div id="profileContent" class="flex-1 flex flex-col justify-center">
+                    <div class="text-center text-neutral-500 py-6 text-sm">Query a symbol to view metadata</div>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Main Charting View -->
+        <div class="lg:col-span-3 flex flex-col gap-6">
+            
+            <!-- Interactive Line Chart -->
+            <div class="bg-neutral-card border border-neutral-700 rounded-xl p-5 shadow flex flex-col">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 class="text-sm font-semibold text-neutral-200">Historical Price Trends</h3>
+                        <p class="text-xs text-neutral-400">DuckDB scan on partitioned Parquet storage footprint</p>
+                    </div>
+                    <div class="flex gap-1 bg-neutral-input border border-neutral-700 rounded-lg p-0.5">
+                        <button class="text-[11px] font-semibold px-2.5 py-1 rounded bg-[#2196F3] text-white" id="range1M">30D</button>
+                        <button class="text-[11px] font-semibold px-2.5 py-1 rounded text-neutral-400 hover:text-white" id="range3M">90D</button>
+                        <button class="text-[11px] font-semibold px-2.5 py-1 rounded text-neutral-400 hover:text-white" id="range6M">180D</button>
+                    </div>
+                </div>
+                
+                <div class="h-[340px] w-full flex items-center justify-center" id="chartWrapper">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Transactions and News -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Transactions Card -->
+                <div class="bg-neutral-card border border-neutral-700 rounded-xl p-5 shadow flex flex-col">
+                    <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4"><i class="fa-solid fa-list-check text-[#2196F3] mr-1.5"></i> Institutional Transactions</h3>
+                    <div class="overflow-x-auto custom-scrollbar flex-1" id="bulkDealsContent">
+                        <!-- Table -->
+                    </div>
+                </div>
+
+                <!-- News Card -->
+                <div class="bg-neutral-card border border-neutral-700 rounded-xl p-5 shadow flex flex-col">
+                    <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4"><i class="fa-solid fa-newspaper text-[#2196F3] mr-1.5"></i> Market News</h3>
+                    <div class="flex flex-col gap-3 max-h-[240px] overflow-y-auto custom-scrollbar flex-1" id="newsContent">
+                        <div class="text-center text-neutral-500 py-6 text-sm">Query a symbol to view news feeds</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="h-[48px] flex-shrink-0 bg-[#262626] border-t border-neutral-700 flex items-center justify-center text-[11px] text-neutral-500">
+        <span>© 2026 Financial Data Platform. Built with Python, DuckDB, FastAPI & MinIO. All rights reserved.</span>
+    </footer>
+
+    <!-- App Script -->
+    <script src="app.js"></script>
+</body>
+</html>
